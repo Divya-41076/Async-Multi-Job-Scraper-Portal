@@ -25,8 +25,11 @@ class StatusStore:
         self._lock = threading.Lock()
         self._store: Dict[str,Dict[str,Any]] ={}   #_store = {"scrape_id":{"scrape_data": none}}
 
-        self._cleanup_age = cleanup_age_seconds or int(os.getenv("JOB_CLEANUP_AGE_SECONDS", 21600)) # default 6 hours
-        self._cleanup_interval = cleanup_interval_seconds or int(os.getenv("JOB_CLEANUP_INTERVAL_SECONDS", 300)) # default 5 minutes
+        # self._cleanup_age = cleanup_age_seconds or int(os.getenv("JOB_CLEANUP_AGE_SECONDS", 21600)) # default 6 hours
+        # self._cleanup_interval = cleanup_interval_seconds or int(os.getenv("JOB_CLEANUP_INTERVAL_SECONDS", 300)) # default 5 minutes
+
+        self._cleanup_age = cleanup_age_seconds
+        self._cleanup_interval = cleanup_interval_seconds
        
         # start cleanup thread only if enabled
         if self._cleanup_age>0 and self._cleanup_interval > 0:
@@ -171,4 +174,4 @@ class StatusStore:
             self._store.pop(scrape_id, None)
 
 
-status_store = StatusStore()
+# status_store = StatusStore()

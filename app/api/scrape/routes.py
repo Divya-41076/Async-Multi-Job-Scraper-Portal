@@ -1,7 +1,9 @@
 import uuid
-from flask import Blueprint,request,jsonify
+import datetime
+from flask import Blueprint,request,jsonify,current_app
 
-from app.services.status_store import status_store
+# from app.services.status_store import status_store
+
 from app.services.executors import get_executor
 from app.services.scraper_runner import run_scrape_job
 
@@ -19,10 +21,10 @@ def start_scrape():
     scrape_id = str(uuid.uuid4())
 
     # create a scrapejob in status store
-    status_store.create(scrape_id=scrape_id,keyword = keyword)
+    current_app.status_store.create(scrape_id=scrape_id,keyword = keyword)
 
-    # start the async scrape job
-    executor.submit(run_scrape_job,scrape_id,keyword)
+    # start the async scrape job  your bankground taks starts...
+    executor.submit(run_scrape_job,current_app._get_current_object(),scrape_id,keyword)
 
     # return immediately(async willl be added later)
     return jsonify({
@@ -34,7 +36,7 @@ def start_scrape():
 
 @scrape_bp.route("/scrape/status/<scrape_id>", methods=["GET"])
 def get_scrape_status(scrape_id:str):
-    job = status_store.get(scrape_id) #get job from status store
+    job = current_app.status_store.get(scrape_id) #get job from status store
 
     if not job:
         return jsonify({
@@ -49,7 +51,7 @@ def get_scrape_status(scrape_id:str):
         "state": job["state"],
         "message":job["message"],
         "matched": job["matched"],
-        "started_at": job["started_at"],
-        "finished_at": job["finished_at"],
+        "started_at": datetime.datetime.fromtimestamp(job["started_at"]).isoformat() if job["started_at"] else None,
+        "finished_at": datetime.datetime.fromtimestamp(job["finished_at"]).isoformat() if job["finished_at"] else None,
         "error": job["error"]
     }), 200

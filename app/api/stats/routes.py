@@ -21,7 +21,7 @@ def get_stats():
     jobs_per_scrape_rows = (db.session.query(Job.scrape_id, func.count(Job.id)).group_by(Job.scrape_id).all())
 
     # latest job timestamp
-    latest_job_time = db.session.query(func>max(Job.created_at)).scalar()
+    latest_job_time = db.session.query(func.max(Job.created_at)).scalar()
 
     return jsonify({
         "total_jobs": total_jobs,

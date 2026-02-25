@@ -5,7 +5,8 @@ from flask import current_app
 
 from app.extensions.db import db # sql session
 from app.models.job import Job #orm model
-from app.services.status_store import status_store #progess tracking and polling
+
+# from app.services.status_store import status_store #progess tracking and polling
 
 
 # this will runs in a bg thread
@@ -14,6 +15,8 @@ from app.services.status_store import status_store #progess tracking and polling
 # doesnt talk to http or request objs
 
 """saves and converts the raw scraped data to job orm object and adds it to the sqlalchemy session"""
+
+logger = logging.getLogger(__name__)
 
 def _save_job(
         scrape_id: str,
@@ -38,18 +41,20 @@ def _save_job(
     
     db.session.add(job)
 
-def run_scrape_job(scrape_id: str, keyword:str):
+def run_scrape_job(app, scrape_id: str, keyword:str):
     """ background task job runner and persists jobs to DB and updates in memory status."""
 
     try:
-        status_store.start(scrape_id)
         
-        status_store.increment_matched(scrape_id)
+        # status_store.increment_matched(scrape_id)
 
-        with current_app.app_context():
+        with app.app_context():
+            store = current_app.status_store
+
+            store.start(scrape_id)
 
             # internshala is the simulated version down below
-            status_store.update_message(scrape_id, "scraping internshala")
+            store.update_message(scrape_id, "scraping internshala")
             time.sleep(2)
 
             _save_job(
@@ -61,10 +66,10 @@ def run_scrape_job(scrape_id: str, keyword:str):
                 location = "remote",
 
             )
-            status_store.increment_matched(scrape_id, 1)
+            store.increment_matched(scrape_id, 1)
 
             # timesjobs is the simulated version down below
-            status_store.update_message(scrape_id, "scraping timesjobs")
+            store.update_message(scrape_id, "scraping timesjobs")
             time.sleep(2)
 
             _save_job(
@@ -76,10 +81,10 @@ def run_scrape_job(scrape_id: str, keyword:str):
                 location = "remote",
 
             )
-            status_store.increment_matched(scrape_id, 1)
+            store.increment_matched(scrape_id, 1)
 
             
-            status_store.update_message(scrape_id, "scraping Bigshyft")
+            store.update_message(scrape_id, "scraping Bigshyft")
             time.sleep(2)
 
             _save_job(
@@ -91,16 +96,21 @@ def run_scrape_job(scrape_id: str, keyword:str):
                 location = "remote",
 
             )
-            status_store.increment_matched(scrape_id, 1)
+            store.increment_matched(scrape_id, 1)
             
             # commit once (important)
             db.session.commit()
 
-        status_store.complete(scrape_id)
+        store.complete(scrape_id)
 
     except Exception as e:
-        db.session.rollback()
-        status_store.fail(scrape_id,str(e))
+        logger.exception("Scrape job %s failed: %s", scrape_id,e)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        store.fail(scrape_id,str(e))
+        
             
 
 # this is the main entry point for the bg thread to run the scrape job, it will be called from the api route handler

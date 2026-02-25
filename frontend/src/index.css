@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+
+/* theme variables */
+
+:root{
+  --color-charcoal: #1E293B;
+  --color-background: #F4F6F8;
+  --color-teal: #0D9488;
+  --color-teal-hover: #F766E;
+  --color-soft-teal: #CCFBF1;
+
+  --color-pending: #F59E0B;
+  --color-running: #0D9488;
+  --color-completed: #22C55E;
+  --color-failed: #EF4444;
+
+}
+
+/* global base styling */
+body{
+  background-color: var(--color-background);
+  color: var(--color-charcoal);
+  font-family: system-ui, -apple-system,sans-serif;
+}

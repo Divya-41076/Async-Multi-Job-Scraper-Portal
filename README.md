@@ -14,7 +14,6 @@
 
 <br/>
 
-![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
 ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-blue?style=flat-square)
 

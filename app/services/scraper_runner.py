@@ -1,117 +1,107 @@
-import time
 import logging
-from typing import Optional
 from flask import current_app
 
-from app.extensions.db import db # sql session
-from app.models.job import Job #orm model
-
-# from app.services.status_store import status_store #progess tracking and polling
-
-
-# this will runs in a bg thread
-# updates in-memory runtime state(statusstore)
-# persists durable dat to db
-# doesnt talk to http or request objs
-
-"""saves and converts the raw scraped data to job orm object and adds it to the sqlalchemy session"""
+from app.extensions.db import db
+from app.models.job import Job
+from app.scrapers import scrape_remotive, scrape_jobicy, scrape_adzuna
+from app.utils.db_retry import safe_db_write
 
 logger = logging.getLogger(__name__)
 
-def _save_job(
-        scrape_id: str,
-        source: str,
-        title:str,
-        company:str,
-        skills: str | None = None,
-        experience: str | None = None,
-        salary: str | None = None,
-        location: str | None = None,):
-    
-    job = Job(
-        scrape_id =scrape_id,
-        source = source,
-        title = title,
-        company = company,
-        skills = skills,
-        experience = experience,
-        salary = salary,
-        location = location,
-    )
-    
-    db.session.add(job)
 
-def run_scrape_job(app, scrape_id: str, keyword:str):
-    """ background task job runner and persists jobs to DB and updates in memory status."""
+def _save_job(
+    scrape_id: str,
+    source: str,
+    title: str,
+    company: str,
+    skills: str | None = None,
+    experience: str | None = None,
+    salary: str | None = None,
+    location: str | None = None,
+    job_url: str | None = None,
+):
+
+    job = Job(
+        scrape_id=scrape_id,
+        source=source,
+        title=title,
+        company=company,
+        skills=skills,
+        experience=experience,
+        salary=salary,
+        location=location,
+        job_url=job_url,
+    )
+
+    success = safe_db_write(operation=lambda: db.session.add(job), session=db.session)
+
+    if not success:
+        logger.info(f"Skipped job: {job_url}")
+        return "duplicate"
+    return "saved"
+
+
+def _run_source(store, scrape_id, name, scrape_fn, keyword, save_fn):
+    """
+    Runs a single source scrape with its own commit.
+    If it fails, logs warning and continues — other sources are unaffected.
+    """
+    try:
+        store.update_message(scrape_id, f"scraping {name}")
+        metrics = scrape_fn(keyword, scrape_id, save_fn)
+        db.session.commit()  # commit after each source
+        store.increment_matched(scrape_id, metrics["matched"])
+        logger.info(
+            f"{name} — fetched: {metrics['total_fetched']}, "
+            f"saved: {metrics['matched']}, "
+            f"duplicates: {metrics['duplicates_skipped']}, "
+            f"success: {metrics['success']}"
+        )
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"{name} source failed: {e} — continuing with other sources")
+
+
+def run_scrape_job(app, scrape_id: str, keyword: str):
+    """background task — runs all scrapers, persists to DB, updates in-memory status."""
 
     try:
-        
-        # status_store.increment_matched(scrape_id)
-
         with app.app_context():
             store = current_app.status_store
-
             store.start(scrape_id)
 
-            # internshala is the simulated version down below
-            store.update_message(scrape_id, "scraping internshala")
-            time.sleep(2)
-
-            _save_job(
-                scrape_id, source = "Internshala",
-                title = "python developer intern",
-                company = "ABC",
-                skills = "python, flask",
-                experience = "1-3 years",
-                location = "remote",
-
+            _run_source(
+                store, scrape_id, "Remotive", scrape_remotive, keyword, _save_job
             )
-            store.increment_matched(scrape_id, 1)
+            _run_source(store, scrape_id, "Jobicy", scrape_jobicy, keyword, _save_job)
+            _run_source(store, scrape_id, "Adzuna", scrape_adzuna, keyword, _save_job)
 
-            # timesjobs is the simulated version down below
-            store.update_message(scrape_id, "scraping timesjobs")
-            time.sleep(2)
-
-            _save_job(
-                scrape_id, source = "TimesJobs",
-                title = "python developer intern",
-                company = "ABC",
-                skills = "python, flask",
-                experience = "1-3 years",
-                location = "remote",
-
-            )
-            store.increment_matched(scrape_id, 1)
-
-            
-            store.update_message(scrape_id, "scraping Bigshyft")
-            time.sleep(2)
-
-            _save_job(
-                scrape_id, source = "Bigshyft",
-                title = "python developer intern",
-                company = "ABC",
-                skills = "python, flask",
-                experience = "1-3 years",
-                location = "remote",
-
-            )
-            store.increment_matched(scrape_id, 1)
-            
-            # commit once (important)
-            db.session.commit()
-
-        store.complete(scrape_id)
+            store.complete(scrape_id)
 
     except Exception as e:
-        logger.exception("Scrape job %s failed: %s", scrape_id,e)
+        logger.exception("Scrape job %s failed: %s", scrape_id, e)
         try:
-            db.session.rollback()
+            with app.app_context():
+                db.session.rollback()
+                current_app.status_store.fail(scrape_id, str(e))
         except Exception:
             pass
-        store.fail(scrape_id,str(e))
-        
-            
+
+
+"""
+```
+
+---
+
+**New folder structure:**
+```
+app/
+└── utils/
+    ├── __init__.py  ← empty
+    └── db_retry.py
+
+"""
+
 
 # this is the main entry point for the bg thread to run the scrape job, it will be called from the api route handler
 # it will run the scrape job and update the status store with the progress and results, it will also handle any exceptions that may occur during the scrape job and update the status store accordingly.

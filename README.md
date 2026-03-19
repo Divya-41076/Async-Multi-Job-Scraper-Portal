@@ -33,6 +33,22 @@ Built with a layered architecture: API → Executor → Scraper → Persistence.
 
 ---
 
+## 📸 Screenshots
+
+### Jobs Page
+![Jobs Page](docs/screenshots/jobs-page.png)
+
+### Jobs Page — Refreshing
+![Jobs Refreshing](docs/screenshots/jobs-refreshing.png)
+
+### Admin Panel — Running
+![Admin Running](docs/screenshots/admin-running.png)
+
+### Admin Panel — Completed
+![Admin Completed](docs/screenshots/admin-completed.png)
+
+---
+
 ## ✨ Features
 
 | Feature | Description |

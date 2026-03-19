@@ -17,6 +17,8 @@ class Job(db.Model):
     salary = db.Column(db.String(100), nullable = True)
     location = db.Column(db.String(255), nullable =True, index = True)
 
+    job_url = db.Column(db.String(500), nullable=True, unique=True)
+
     created_at = db.Column(db.DateTime,default = datetime.utcnow, nullable = False, index =True)
 
     # api - friendly representation
@@ -32,6 +34,7 @@ class Job(db.Model):
             "experience": self.experience,
             "salary":self.salary,
             "location": self.location,
+            "job_url": self.job_url,
             "created_at": self.created_at.isoformat(),  # convert datetime to ISO format
         }
                 

@@ -1,4 +1,9 @@
 Flask
 Flask-SQLAlchemy
+Flask-Cors
 mysql-connector-python
 python-dotenv
+requests
+beautifulsoup4
+lxml
+gunicorn

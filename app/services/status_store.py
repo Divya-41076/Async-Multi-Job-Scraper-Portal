@@ -158,6 +158,14 @@ class StatusStore:
                 job["matched"] += count
 
 # read
+    def is_scrape_running(self, keyword: str) -> bool:
+        """Check if a scrape is already running for this keyword"""
+        with self._lock:
+            for job in self._store.values():
+                if (job["keyword"] == keyword and 
+                    job["state"] in {ScrapeState.PENDING, ScrapeState.RUNNING}):
+                    return True
+            return False
     def get(self, scrape_id:str) -> Optional[Dict[str,Any]]:
         with self._lock:
             job = self._store.get(scrape_id)

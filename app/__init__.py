@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
+
 from app.config import config_by_name
 from app.extensions.db import db
 from app.api.health.routes import health_bp
@@ -11,11 +12,14 @@ from app.api.scrape.routes import scrape_bp
 from app.api.jobs.routes import jobs_bp
 from app.api.stats.routes import stats_bp
 from app.services.status_store import StatusStore
+from app.services.cleanup_service import start_cleanup_worker
+from app.middleware import register_middleware
 
 def create_app():
     # load_dotenv()
 
     app = Flask(__name__)
+
     CORS(app)
 
     # Load config based on environment
@@ -36,5 +40,10 @@ def create_app():
     app.register_blueprint(scrape_bp)
     app.register_blueprint(jobs_bp)
     app.register_blueprint(stats_bp)
+    
+    register_middleware(app)
 
+    # start the bg cleanup worker
+    start_cleanup_worker(app)
+    
     return app
